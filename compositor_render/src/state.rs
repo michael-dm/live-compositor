@@ -39,6 +39,7 @@ pub struct RendererOptions {
     pub stream_fallback_timeout: Duration,
     pub force_gpu: bool,
     pub wgpu_features: wgpu::Features,
+    pub adapter: Option<Arc<wgpu::Adapter>>
 }
 
 #[derive(Clone)]
@@ -180,7 +181,7 @@ impl Renderer {
 
 impl InnerRenderer {
     pub fn new(opts: RendererOptions) -> Result<Self, InitRendererEngineError> {
-        let wgpu_ctx = WgpuCtx::new(opts.force_gpu, opts.wgpu_features)?;
+        let wgpu_ctx = WgpuCtx::new(opts.force_gpu, opts.wgpu_features, opts.adapter)?;
 
         Ok(Self {
             wgpu_ctx: wgpu_ctx.clone(),

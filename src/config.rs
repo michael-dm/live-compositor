@@ -1,7 +1,7 @@
-use std::{env, path::PathBuf, str::FromStr, time::Duration};
+use std::{env, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
 use compositor_pipeline::queue::{self, QueueOptions};
-use compositor_render::{web_renderer::WebRendererInitOptions, Framerate, WgpuFeatures};
+use compositor_render::{web_renderer::WebRendererInitOptions, Framerate, WgpuFeatures, WgpuAdapter};
 use rand::Rng;
 
 use crate::logger::FfmpegLogLevel;
@@ -18,6 +18,7 @@ pub struct Config {
     pub queue_options: QueueOptions,
     pub output_sample_rate: u32,
     pub required_wgpu_features: WgpuFeatures,
+    pub adapter: Option<Arc<WgpuAdapter>>
 }
 
 #[derive(Debug, Clone)]
@@ -206,6 +207,7 @@ fn try_read_config() -> Result<Config, String> {
         download_root,
         output_sample_rate,
         required_wgpu_features,
+        adapter: None
     };
     Ok(config)
 }

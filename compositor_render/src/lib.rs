@@ -21,6 +21,7 @@ pub use state::RendererSpec;
 
 pub use wgpu::use_global_wgpu_ctx;
 pub use wgpu::WgpuFeatures;
+pub use wgpu::WgpuAdapter;
 
 pub mod image {
     pub use crate::transformations::image_renderer::{ImageSource, ImageSpec, ImageType};

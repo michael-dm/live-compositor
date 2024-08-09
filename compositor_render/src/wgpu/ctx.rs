@@ -16,10 +16,11 @@ pub fn use_global_wgpu_ctx() {
 fn global_wgpu_ctx(
     force_gpu: bool,
     features: wgpu::Features,
+    adapter: Option<Arc<wgpu::Adapter>>
 ) -> Result<Arc<WgpuCtx>, CreateWgpuCtxError> {
     static CTX: OnceLock<Result<Arc<WgpuCtx>, CreateWgpuCtxError>> = OnceLock::new();
 
-    CTX.get_or_init(|| Ok(Arc::new(WgpuCtx::create(force_gpu, features)?)))
+    CTX.get_or_init(|| Ok(Arc::new(WgpuCtx::create(force_gpu, features, adapter)?)))
         .clone()
 }
 
@@ -39,29 +40,35 @@ pub struct WgpuCtx {
 }
 
 impl WgpuCtx {
-    pub fn new(force_gpu: bool, features: wgpu::Features) -> Result<Arc<Self>, CreateWgpuCtxError> {
+    pub fn new(force_gpu: bool, features: wgpu::Features, adapter: Option<Arc<wgpu::Adapter>>) -> Result<Arc<Self>, CreateWgpuCtxError> {
         if USE_GLOBAL_WGPU_CTX.load(std::sync::atomic::Ordering::Relaxed) {
-            global_wgpu_ctx(force_gpu, features)
+            global_wgpu_ctx(force_gpu, features, adapter)
         } else {
-            Ok(Arc::new(Self::create(force_gpu, features)?))
+            Ok(Arc::new(Self::create(force_gpu, features, adapter)?))
         }
     }
 
-    fn create(force_gpu: bool, features: wgpu::Features) -> Result<Self, CreateWgpuCtxError> {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
+    fn create(force_gpu: bool, features: wgpu::Features, adapter: Option<Arc<wgpu::Adapter>>) -> Result<Self, CreateWgpuCtxError> {
+        let adapter = match adapter {
+            Some(a) => a,
+            None => {
+                let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                    backends: wgpu::Backends::all(),
+                    ..Default::default()
+                });
 
-        log_available_adapters(&instance);
+                log_available_adapters(&instance);
 
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptionsBase {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                force_fallback_adapter: false,
-                compatible_surface: None,
-            }))
-            .ok_or(CreateWgpuCtxError::NoAdapter)?;
+                let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptionsBase {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    force_fallback_adapter: false,
+                    compatible_surface: None,
+                }))
+                .ok_or(CreateWgpuCtxError::NoAdapter)?;
+
+                Arc::new(adapter)
+            },
+        };
 
         let adapter_info = adapter.get_info();
         info!(

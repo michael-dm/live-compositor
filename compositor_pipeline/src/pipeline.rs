@@ -114,6 +114,7 @@ pub struct Options {
     pub download_root: PathBuf,
     pub output_sample_rate: u32,
     pub wgpu_features: WgpuFeatures,
+    pub adapter: Option<Arc<wgpu::Adapter>>
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +132,7 @@ impl Pipeline {
             stream_fallback_timeout: opts.stream_fallback_timeout,
             force_gpu: opts.force_gpu,
             wgpu_features: opts.wgpu_features,
+            adapter: opts.adapter
         })?;
 
         let download_dir = opts
