@@ -73,7 +73,6 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
         debug!("loop {}, elapsed: {:?}", i, start.elapsed());
         i += 1;
 
-        sleep(Duration::from_millis(200));
         let (other_pipeline, _) = Pipeline::new(Options {
             queue_options: QueueOptions {
                 default_buffer_duration: Duration::ZERO,
@@ -96,36 +95,8 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
         let other_pipeline = Arc::new(Mutex::new(other_pipeline));
         Pipeline::start(&other_pipeline);
 
-        let input_options = RegisterInputOptions {
-            input_options: InputOptions::Mp4(Mp4Options {
-                source: Source::File(root_dir().join(BUNNY_FILE_PATH)),
-                should_loop: true,
-            }),
-            queue_options: QueueInputOptions {
-                required: false,
-                offset: None,
-                buffer_duration: None,
-            },
-        };
-        Pipeline::register_input(&other_pipeline, video_input_id.clone(), input_options)?;
+        sleep(Duration::from_millis(10));
 
-        let other_output_id = OutputId("other_output_1".into());
-        let RawDataReceiver { video, audio } = other_pipeline
-            .lock()
-            .unwrap()
-            .register_raw_data_output(other_output_id.clone(), output_options.clone())
-            .unwrap();
-
-        thread::spawn(move || {
-            for frame in video.unwrap() {
-
-            }
-            debug!("raw data sender thread finished");
-        });
-        sleep(Duration::from_millis(100));
-
-        other_pipeline.lock().unwrap().unregister_input(&video_input_id)?;
-        other_pipeline.lock().unwrap().unregister_output(&other_output_id)?;
         // other_pipeline dropped ?
     }
 
