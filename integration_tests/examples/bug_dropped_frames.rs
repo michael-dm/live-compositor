@@ -36,28 +36,6 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
 
     download_file(BUNNY_FILE_URL, BUNNY_FILE_PATH)?;
 
-    let (root_pipeline, _) = Pipeline::new(compositor_pipeline::pipeline::Options {
-        queue_options: QueueOptions {
-            default_buffer_duration: Duration::ZERO,
-            ahead_of_time_processing: false,
-            output_framerate: Framerate { num: 24, den: 1 },
-            run_late_scheduled_events: true,
-            never_drop_output_frames: false,
-        },
-        stream_fallback_timeout: Duration::from_millis(200),
-        web_renderer: WebRendererInitOptions {
-            enable: false,
-            enable_gpu: true,
-        },
-        force_gpu: false,
-        download_root: env::temp_dir(),
-        output_sample_rate: 48000,
-        wgpu_features: WgpuFeatures::empty(),
-        wgpu_ctx: Some((WgpuCtx::instance().device.clone(), WgpuCtx::instance().queue.clone())),
-    })?;
-    let root_pipeline = Arc::new(Mutex::new(root_pipeline));
-    Pipeline::start(&root_pipeline);
-
     let placeholder = scene::Component::View(scene::ViewComponent {
         id: None,
         children: vec![],
@@ -87,18 +65,6 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
         audio: None,
     };
 
-    let output_id = OutputId("output_1".into());
-    let RawDataReceiver { video, audio } = root_pipeline
-        .lock()
-        .unwrap()
-        .register_raw_data_output(output_id.clone(), output_options.clone())
-        .unwrap();
-    thread::spawn(move || {
-        for _frame in video.unwrap() {
-            //
-        }
-    });
-
     let pipeline_input_id = InputId("input_1".into());
     let video_input_id = InputId("video_input_1".into());
     let start = Instant::now();
@@ -106,8 +72,6 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
     loop {
         debug!("loop {}, elapsed: {:?}", i, start.elapsed());
         i += 1;
-
-        let _ = root_pipeline.lock().unwrap().unregister_input(&pipeline_input_id);
 
         sleep(Duration::from_millis(200));
         let (other_pipeline, _) = Pipeline::new(Options {
@@ -145,22 +109,6 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
         };
         Pipeline::register_input(&other_pipeline, video_input_id.clone(), input_options)?;
 
-        let sender = Pipeline::register_raw_data_input(
-            &root_pipeline,
-            pipeline_input_id.clone(),
-            RawDataInputOptions {
-                video: true,
-                audio: false,
-            },
-            QueueInputOptions {
-                required: false,
-                offset: None,
-                buffer_duration: None,
-            },
-        )
-            .unwrap();
-        let mut sender = sender.video.unwrap();
-
         let other_output_id = OutputId("other_output_1".into());
         let RawDataReceiver { video, audio } = other_pipeline
             .lock()
@@ -168,24 +116,17 @@ fn main () -> Result<(), Box<dyn std::error::Error>> {
             .register_raw_data_output(other_output_id.clone(), output_options.clone())
             .unwrap();
 
-        // just piping frames from other_pipeline to root_pipeline
         thread::spawn(move || {
             for frame in video.unwrap() {
-                let _ = sender.send(frame);
+
             }
             debug!("raw data sender thread finished");
         });
+        sleep(Duration::from_millis(100));
 
-        let video_component = Component::InputStream(InputStreamComponent {
-            id: None,
-            input_id: pipeline_input_id.clone(),
-        });
-        root_pipeline.lock().unwrap().update_output(output_id.clone(), Some(video_component), None)?;
-        sleep(Duration::from_millis(200));
-
-        root_pipeline.lock().unwrap().update_output(output_id.clone(), Some(placeholder.clone()), None)?;
-
-        // other_pipeline dropped
+        other_pipeline.lock().unwrap().unregister_input(&video_input_id)?;
+        other_pipeline.lock().unwrap().unregister_output(&other_output_id)?;
+        // other_pipeline dropped ?
     }
 
     Ok(())
