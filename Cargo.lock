@@ -1594,6 +1594,7 @@ dependencies = [
  "log",
  "opus",
  "pitch-detection",
+ "pollster",
  "rand",
  "regex",
  "reqwest",
@@ -1606,6 +1607,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tracing",
+ "tracing-subscriber 0.3.18",
  "webrtc-util",
  "wgpu",
 ]
